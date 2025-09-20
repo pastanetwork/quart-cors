@@ -234,6 +234,7 @@ def cors(
     expose_headers: Optional[Iterable[str]] = None,
     max_age: Optional[Union[timedelta, float, str]] = None,
     send_origin_wildcard: Optional[bool] = None,
+    websocket_cors_enabled: Optional[bool] = True,
 ) -> T:
     """Apply the CORS access control headers to all routes.
 
@@ -265,6 +266,10 @@ def cors(
             client.
         send_origin_wildcard: Send wildcard, "*", as the allow origin
             were appropriate (or echo the request origin).
+        websocket_cors_enabled: If set to False, CORS checks will be
+            disabled for WebSocket connections. Useful for development
+            environments where WebSocket origin validation may cause
+            issues. Defaults to True.
 
     """
     app_or_blueprint.after_request(
@@ -279,11 +284,12 @@ def cors(
             send_origin_wildcard=send_origin_wildcard,
         )
     )
-    app_or_blueprint.before_websocket(
-        partial(
-            _before_websocket, allow_origin=allow_origin, send_origin_wildcard=send_origin_wildcard
+    if websocket_cors_enabled:
+        app_or_blueprint.before_websocket(
+            partial(
+                _before_websocket, allow_origin=allow_origin, send_origin_wildcard=send_origin_wildcard
+            )
         )
-    )
     return app_or_blueprint
 
 
@@ -400,6 +406,7 @@ def _apply_websocket_cors(
     send_origin_wildcard = send_origin_wildcard or _get_config_or_default(
         "QUART_CORS_SEND_ORIGIN_WILDCARD"
     )
+
     origin = _get_origin_if_valid(websocket.origin, allow_origin, send_origin_wildcard)
     if origin is None:
         abort(400)
